@@ -1,23 +1,49 @@
-# Antigravity Clean URL & Security Configuration for /courses
+# ==============================================================================
+# LKVM Courses Academy - Clean URL & Apache Routing Configuration
+# Compatible with both domain root (https://courses.lkvmbihar.in/) and subfolders
+# ==============================================================================
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /lkvm/courses/
 
-    # Disable directory indexing
-    Options -Indexes
+    # Prevent directory browsing and disable MultiViews negotiation
+    Options -Indexes -MultiViews
+    Options +FollowSymLinks
 
-    # 1. Redirect /index.php to root /courses/
-    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/lkvm/courses/index\.php [NC]
+    # Default index files
+    DirectoryIndex index.php index.html
+
+    # MIME types for modern favicons
+    AddType image/svg+xml .svg
+    AddType image/x-icon .ico
+    AddType image/png .png
+
+    # --------------------------------------------------------------------------
+    # 1. External 301 Redirect: Hide .php from address bar
+    # (Excludes /api/ endpoints and form POST submissions)
+    # --------------------------------------------------------------------------
+    RewriteCond %{THE_REQUEST} !/api/ [NC]
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^?#\s]+)\.php([?\s#]) [NC]
     RewriteCond %{REQUEST_METHOD} !POST
-    RewriteRule ^index\.php$ /lkvm/courses/ [R=301,L]
+    RewriteRule ^ %1 [R=301,L,NE]
 
-    # 2. Redirect external GET/HEAD requests with .php to clean URL (removes .php from address bar)
-    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/lkvm/courses/([^\s\?]+)\.php [NC]
-    RewriteCond %{REQUEST_METHOD} !POST
-    RewriteRule ^([^\.]+)\.php$ /lkvm/courses/$1 [R=301,L,QSA]
+    # --------------------------------------------------------------------------
+    # 2. Pass-through existing physical files and directories (css, js, images, uploads, api)
+    # --------------------------------------------------------------------------
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
 
-    # 3. Internally resolve clean URL to .php file if it exists
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME}\.php -f
+    # --------------------------------------------------------------------------
+    # 3. Course Clean Routing: /course/<slug> -> details.php?slug=<slug>
+    # --------------------------------------------------------------------------
+    RewriteRule ^course/([^/]+)/?$ details.php?slug=$1 [L,QSA]
+
+    # --------------------------------------------------------------------------
+    # 4. Internal Rewrite: Map extensionless URL to corresponding .php file
+    # (Handles /login -> login.php, /categories -> categories.php, /admin/courses -> admin/courses.php)
+    # --------------------------------------------------------------------------
+    RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^(.*)$ $1.php [L,QSA]
+
 </IfModule>

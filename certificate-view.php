@@ -258,6 +258,10 @@ if (!$use_custom_canvas && empty($_GET['template']) && !empty($cert_custom_bg) &
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificate of Completion - <?php echo $student_name; ?> | <?php echo htmlspecialchars($cert_org_title); ?></title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.ico">
     
     <!-- Authentic Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700;800;900&family=Great+Vibes&family=Alex+Brush&display=swap" rel="stylesheet">
