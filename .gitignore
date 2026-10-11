@@ -1,0 +1,64 @@
+# ==============================================================================
+# Git Ignore Configuration - LKVM Courses & Academy
+# ==============================================================================
+
+# 1. Environment & Secret Credentials (CRITICAL - DO NOT COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+
+# 2. Server Logs & Temporary Files
+*.log
+error_log
+access_log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 3. Flutter & Dart Build Artifacts (Inside mobile_app)
+mobile_app/build/
+mobile_app/.dart_tool/
+mobile_app/.flutter-plugins
+mobile_app/.flutter-plugins-dependencies
+mobile_app/.pub/
+mobile_app/.pub-cache/
+mobile_app/android/.gradle/
+mobile_app/android/local.properties
+mobile_app/android/app/debug/
+mobile_app/android/app/profile/
+mobile_app/android/app/release/
+mobile_app/ios/Flutter/.last_build_id
+mobile_app/ios/Pods/
+mobile_app/ios/.symlinks/
+mobile_app/ios/Flutter/Flutter.framework
+mobile_app/ios/Flutter/Flutter.podspec
+mobile_app/.env
+mobile_app/*.env
+
+# 4. Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 5. IDE & Code Editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.user
+*.swp
+*~
+
+# 6. Large or Generated Uploads (Keep folder structure, exclude large test media)
+uploads/tmp/*
+!uploads/tmp/.gitkeep
