@@ -1,0 +1,23 @@
+# Antigravity Clean URL & Security Configuration for /courses
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /lkvm/courses/
+
+    # Disable directory indexing
+    Options -Indexes
+
+    # 1. Redirect /index.php to root /courses/
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/lkvm/courses/index\.php [NC]
+    RewriteCond %{REQUEST_METHOD} !POST
+    RewriteRule ^index\.php$ /lkvm/courses/ [R=301,L]
+
+    # 2. Redirect external GET/HEAD requests with .php to clean URL (removes .php from address bar)
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/lkvm/courses/([^\s\?]+)\.php [NC]
+    RewriteCond %{REQUEST_METHOD} !POST
+    RewriteRule ^([^\.]+)\.php$ /lkvm/courses/$1 [R=301,L,QSA]
+
+    # 3. Internally resolve clean URL to .php file if it exists
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}\.php -f
+    RewriteRule ^(.*)$ $1.php [L,QSA]
+</IfModule>
