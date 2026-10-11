@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/auth_redirect.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/modern_button.dart';
 import '../../widgets/custom_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final VoidCallback? onRegisterSuccess;
+  const RegisterScreen({super.key, this.onRegisterSuccess});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -61,7 +63,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: AppColors.success,
         ),
       );
-      Navigator.of(context).pop();
+      if (widget.onRegisterSuccess != null) {
+        widget.onRegisterSuccess!();
+      } else {
+        await AuthRedirect.redirect(context);
+      }
     } else {
       setState(() {
         _errorMessage = res['message'] ?? 'Registration failed.';

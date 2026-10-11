@@ -78,7 +78,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => LoginScreen(onLoginSuccess: _loadEnrollments),
+                        builder: (_) => const LoginScreen(),
                       ),
                     );
                   },

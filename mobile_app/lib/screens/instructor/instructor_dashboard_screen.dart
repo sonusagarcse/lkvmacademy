@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../widgets/stats_card.dart';
 import 'add_course_screen.dart';
 import 'add_lesson_screen.dart';
+import 'payment_settings_screen.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -78,6 +79,15 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
       appBar: AppBar(
         title: const Text('Admin Panel - Courses'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.payment_rounded),
+            tooltip: 'Payment Gateways Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PaymentSettingsScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadDashboard,

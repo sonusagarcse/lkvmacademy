@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import 'home_screen.dart';
+import 'explore_courses_screen.dart';
 import 'my_courses_screen.dart';
 import 'profile_screen.dart';
 import '../instructor/instructor_dashboard_screen.dart';
+
+class _NavItemData {
+  final IconData activeIcon;
+  final IconData inactiveIcon;
+  final String label;
+
+  const _NavItemData({
+    required this.activeIcon,
+    required this.inactiveIcon,
+    required this.label,
+  });
+}
 
 class StudentMainNav extends StatefulWidget {
   final int initialIndex;
@@ -17,10 +30,33 @@ class StudentMainNav extends StatefulWidget {
 class _StudentMainNavState extends State<StudentMainNav> {
   late int _currentIndex;
 
+  static const List<_NavItemData> _navItems = [
+    _NavItemData(
+      activeIcon: Icons.home_rounded,
+      inactiveIcon: Icons.home_outlined,
+      label: 'Home',
+    ),
+    _NavItemData(
+      activeIcon: Icons.search_rounded,
+      inactiveIcon: Icons.search_rounded,
+      label: 'Explore',
+    ),
+    _NavItemData(
+      activeIcon: Icons.school_rounded,
+      inactiveIcon: Icons.school_outlined,
+      label: 'Courses',
+    ),
+    _NavItemData(
+      activeIcon: Icons.person_rounded,
+      inactiveIcon: Icons.person_outline_rounded,
+      label: 'Profile',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _currentIndex = widget.initialIndex.clamp(0, _navItems.length - 1);
     AuthService().addListener(_onAuthChange);
   }
 
@@ -38,86 +74,133 @@ class _StudentMainNavState extends State<StudentMainNav> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = AuthService();
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final pages = [
       HomeScreen(
         onExploreAllTap: () => setState(() => _currentIndex = 1),
       ),
+      const ExploreCoursesScreen(),
       const MyCoursesScreen(),
       const ProfileScreen(),
     ];
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: IndexedStack(
-        index: _currentIndex,
+        index: _currentIndex.clamp(0, pages.length - 1),
         children: pages,
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
+        color: Colors.transparent,
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          bottomInset > 0 ? bottomInset + 2 : 14,
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.explore_rounded, 'Explore'),
-                _buildNavItem(1, Icons.play_lesson_rounded, 'My Learning'),
-                _buildNavItem(2, Icons.person_rounded, 'Account'),
-                if (auth.isAdmin)
-                  _buildAdminPanelButton(context),
-              ],
+        child: Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0058F6), Color(0xFF0066FF)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
+            borderRadius: BorderRadius.circular(36),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0062FF).withOpacity(0.38),
+                blurRadius: 22,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              for (int i = 0; i < _navItems.length; i++)
+                _buildAnimatedNavItem(i, _navItems[i]),
+              if (auth.isAdmin)
+                _buildAdminPanelButton(context),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildAnimatedNavItem(int index, _NavItemData item) {
     final isSelected = _currentIndex == index;
+    const brandBlue = Color(0xFF0062FF);
+
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        if (_currentIndex != index) {
+          HapticFeedback.lightImpact();
+          setState(() => _currentIndex = index);
+        }
+      },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 11,
+          vertical: 9,
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
-              color: isSelected ? AppColors.primaryLight : Colors.grey,
-              size: 22,
+              isSelected ? item.activeIcon : item.inactiveIcon,
+              color: isSelected ? brandBlue : Colors.white.withOpacity(0.92),
+              size: isSelected ? 22 : 23,
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.primaryLight,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.centerLeft,
+                child: isSelected
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 7),
+                        child: Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          style: const TextStyle(
+                            color: brandBlue,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -125,41 +208,40 @@ class _StudentMainNavState extends State<StudentMainNav> {
   }
 
   Widget _buildAdminPanelButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const InstructorDashboardScreen()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+    return Tooltip(
+      message: 'Admin Dashboard',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const InstructorDashboardScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.amberAccent.withOpacity(0.7),
+              width: 1,
+            ),
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 6),
-            Text(
-              'Admin',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.admin_panel_settings_rounded, color: Colors.amberAccent, size: 18),
+              SizedBox(width: 4),
+              Text(
+                'Admin',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -67,6 +67,8 @@ if (isset($_POST['submit_upi_payment'])) {
 }
 
 // Payment Settings
+$enable_razorpay = lms_get_setting($con, 'enable_razorpay', '1') === '1';
+$enable_upi = lms_get_setting($con, 'enable_upi', '1') === '1';
 $razorpay_key = lms_get_setting($con, 'razorpay_key_id', '');
 $upi_id = lms_get_setting($con, 'upi_id', 'lkvm@upi');
 $upi_name = lms_get_setting($con, 'upi_name', 'LKVM Academy');
@@ -158,7 +160,7 @@ $qr_code_url = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" 
                 </div>
             </div>
 
-            <!-- Payment Options -->
+            <!-- Payment Options (Only Enabled Gateways are Displayed) -->
             <div class="col-lg-6">
                 <h5 class="fw-800 text-dark mb-3">Choose Payment Mode</h5>
 
@@ -168,8 +170,16 @@ $qr_code_url = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" 
                     </div>
                 <?php endif; ?>
 
-                <!-- Razorpay Gateway Option (if Key ID configured) -->
-                <?php if (!empty($razorpay_key)): ?>
+                <?php if (!$enable_razorpay && !$enable_upi): ?>
+                    <div class="p-4 rounded-4 border bg-white text-center">
+                        <i class="fa fa-info-circle text-primary fs-2 mb-2"></i>
+                        <h6 class="fw-bold">Payment Gateway Maintenance</h6>
+                        <p class="text-muted small mb-0">Online payment options are currently undergoing scheduled maintenance. Please contact support to enroll.</p>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Razorpay Gateway Option (ONLY if enabled in Admin) -->
+                <?php if ($enable_razorpay && !empty($razorpay_key)): ?>
                     <div class="p-4 rounded-4 border bg-white mb-3 shadow-sm">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <span class="fw-bold text-dark"><i class="fa fa-credit-card text-primary me-2"></i>Pay Online (Card / NetBanking)</span>
@@ -180,38 +190,42 @@ $qr_code_url = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" 
                         </button>
                     </div>
 
-                    <div class="text-center my-3 text-muted small fw-bold">-- OR PAY VIA UPI QR CODE --</div>
+                    <?php if ($enable_upi): ?>
+                        <div class="text-center my-3 text-muted small fw-bold">-- OR PAY VIA UPI QR CODE --</div>
+                    <?php endif; ?>
                 <?php endif; ?>
 
-                <!-- UPI QR Code Option -->
-                <div class="p-4 rounded-4 border bg-white shadow-sm text-center">
-                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 fw-bold small mb-2">
-                        <i class="fa fa-qrcode me-1"></i> Instant Scan & Pay
-                    </span>
-                    <h6 class="fw-800 mb-3 text-dark">Scan QR with any UPI App</h6>
+                <!-- UPI QR Code Option (ONLY if enabled in Admin) -->
+                <?php if ($enable_upi): ?>
+                    <div class="p-4 rounded-4 border bg-white shadow-sm text-center">
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 fw-bold small mb-2">
+                            <i class="fa fa-qrcode me-1"></i> Instant Scan & Pay
+                        </span>
+                        <h6 class="fw-800 mb-3 text-dark">Scan QR with any UPI App</h6>
 
-                    <div class="mb-3 d-inline-block p-2 bg-white rounded-3 border shadow-sm">
-                        <img src="<?php echo $qr_code_url; ?>" alt="UPI QR Code" style="width: 170px; height: 170px;">
-                    </div>
-
-                    <div class="small text-muted mb-3">
-                        UPI ID: <strong class="text-dark"><?php echo htmlspecialchars($upi_id); ?></strong><br>
-                        Payee: <strong><?php echo htmlspecialchars($upi_name); ?></strong>
-                    </div>
-
-                    <!-- UTR Form -->
-                    <form method="POST">
-                        <div class="mb-3 text-start">
-                            <label class="form-label small fw-bold text-muted text-uppercase">12-Digit UPI Transaction / UTR No *</label>
-                            <input type="text" name="utr_number" class="form-control" placeholder="e.g. 412356789012" required pattern="[0-9A-Za-z]{6,30}">
-                            <small class="text-muted">Found in your Google Pay, PhonePe, or Paytm receipt</small>
+                        <div class="mb-3 d-inline-block p-2 bg-white rounded-3 border shadow-sm">
+                            <img src="<?php echo $qr_code_url; ?>" alt="UPI QR Code" style="width: 170px; height: 170px;">
                         </div>
 
-                        <button type="submit" name="submit_upi_payment" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow">
-                            <i class="fa fa-check-circle me-1"></i> Verify & Unlock Course
-                        </button>
-                    </form>
-                </div>
+                        <div class="small text-muted mb-3">
+                            UPI ID: <strong class="text-dark"><?php echo htmlspecialchars($upi_id); ?></strong><br>
+                            Payee: <strong><?php echo htmlspecialchars($upi_name); ?></strong>
+                        </div>
+
+                        <!-- UTR Form -->
+                        <form method="POST">
+                            <div class="mb-3 text-start">
+                                <label class="form-label small fw-bold text-muted text-uppercase">12-Digit UPI Transaction / UTR No *</label>
+                                <input type="text" name="utr_number" class="form-control" placeholder="e.g. 412356789012" required pattern="[0-9A-Za-z]{6,30}">
+                                <small class="text-muted">Found in your Google Pay, PhonePe, or Paytm receipt</small>
+                            </div>
+
+                            <button type="submit" name="submit_upi_payment" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow">
+                                <i class="fa fa-check-circle me-1"></i> Verify & Unlock Course
+                            </button>
+                        </form>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

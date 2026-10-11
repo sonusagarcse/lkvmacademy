@@ -21,6 +21,7 @@ class ApiEndpoints {
   static String get enroll => '$baseUrl/enroll.php';
   static String get progress => '$baseUrl/progress.php';
   static String get dashboard => '$baseUrl/dashboard.php';
+  static String get settings => '$baseUrl/settings.php';
 
   // Format media asset url if relative path is given
   static String resolveAssetUrl(String? path) {

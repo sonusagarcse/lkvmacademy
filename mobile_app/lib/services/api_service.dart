@@ -215,4 +215,32 @@ class ApiService {
     }
     return null;
   }
+
+  // 10. Fetch Payment Gateway & Platform Settings
+  Future<Map<String, dynamic>?> getPaymentSettings() async {
+    try {
+      final res = await http.get(Uri.parse(ApiEndpoints.settings), headers: _headers);
+      if (res.statusCode == 200) {
+        final decoded = json.decode(res.body);
+        if (decoded['status'] == true && decoded['data'] != null) {
+          return decoded['data'];
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // 11. Update Payment Gateway Settings (Admin Feature)
+  Future<Map<String, dynamic>> updatePaymentSettings(Map<String, dynamic> data) async {
+    try {
+      final res = await http.post(
+        Uri.parse(ApiEndpoints.settings),
+        headers: _headers,
+        body: json.encode(data),
+      );
+      return json.decode(res.body);
+    } catch (e) {
+      return {'status': false, 'message': 'Network error: $e'};
+    }
+  }
 }

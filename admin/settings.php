@@ -31,6 +31,15 @@ if (isset($_POST['save_settings'])) {
             lms_set_setting($con, $key, trim($_POST[$key]));
         }
     }
+
+    // Explicitly handle toggle switches (unchecked checkboxes don't submit in POST)
+    $enable_razorpay = isset($_POST['enable_razorpay']) ? '1' : '0';
+    $enable_upi = isset($_POST['enable_upi']) ? '1' : '0';
+    $enable_card = isset($_POST['enable_card']) ? '1' : '0';
+    lms_set_setting($con, 'enable_razorpay', $enable_razorpay);
+    lms_set_setting($con, 'enable_upi', $enable_upi);
+    lms_set_setting($con, 'enable_card', $enable_card);
+
     $msg = "Settings updated successfully!";
 }
 
@@ -67,6 +76,9 @@ $contact_email = lms_get_setting($con, 'contact_email', 'info@lkvm.org');
 $contact_phone = lms_get_setting($con, 'contact_phone', '+91 9801664500');
 $currency_symbol = lms_get_setting($con, 'currency_symbol', '₹');
 $currency_code = lms_get_setting($con, 'currency_code', 'INR');
+$enable_razorpay = lms_get_setting($con, 'enable_razorpay', '1');
+$enable_upi = lms_get_setting($con, 'enable_upi', '1');
+$enable_card = lms_get_setting($con, 'enable_card', '0');
 $razorpay_key_id = lms_get_setting($con, 'razorpay_key_id', '');
 $razorpay_key_secret = lms_get_setting($con, 'razorpay_key_secret', '');
 $upi_id = lms_get_setting($con, 'upi_id', 'lkvm@upi');
@@ -144,34 +156,96 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <div class="bg-light p-3 rounded-3 mb-3">
-                    <h6 class="fw-bold mb-2"><i class="fa fa-credit-card text-primary me-2"></i>Razorpay Gateway (Online Cards/NetBanking/UPI)</h6>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Razorpay Key ID</label>
-                            <input type="text" name="razorpay_key_id" class="form-control" placeholder="rzp_live_... or rzp_test_..." value="<?php echo htmlspecialchars($razorpay_key_id); ?>">
+                <!-- 1. Direct UPI & QR Code Settings -->
+                <div class="card border-0 bg-light p-3 rounded-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success bg-opacity-10 text-success p-2 rounded-circle">
+                                <i class="fa fa-qrcode fs-6"></i>
+                            </span>
+                            <div>
+                                <h6 class="fw-bold mb-0">Direct UPI & QR Code Payment</h6>
+                                <small class="text-muted">Instant GPay, PhonePe, Paytm QR scanning with UTR submission</small>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Razorpay Key Secret</label>
-                            <input type="password" name="razorpay_key_secret" class="form-control" placeholder="Key Secret" value="<?php echo htmlspecialchars($razorpay_key_secret); ?>">
+                        <div class="form-check form-switch fs-5 mb-0">
+                            <input class="form-check-input" type="checkbox" name="enable_upi" value="1" id="enable_upi" <?php echo $enable_upi == '1' ? 'checked' : ''; ?>>
                         </div>
                     </div>
-                    <small class="text-muted mt-2 d-block">Optional: Leave blank to offer direct UPI QR code payment exclusively.</small>
-                </div>
-
-                <div class="bg-light p-3 rounded-3 mb-4">
-                    <h6 class="fw-bold mb-2"><i class="fa fa-qrcode text-success me-2"></i>Direct UPI & QR Code Settings</h6>
-                    <div class="row g-2">
+                    <div class="row g-2 mt-1">
                         <div class="col-md-6">
                             <label class="form-label small text-muted">Academy UPI ID / VPA</label>
-                            <input type="text" name="upi_id" class="form-control" placeholder="e.g. lkvm@icici" value="<?php echo htmlspecialchars($upi_id); ?>">
+                            <input type="text" name="upi_id" class="form-control form-control-sm" placeholder="e.g. lkvm@icici" value="<?php echo htmlspecialchars($upi_id); ?>">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small text-muted">Payee / Account Name</label>
-                            <input type="text" name="upi_name" class="form-control" placeholder="e.g. LKVM Computer Academy" value="<?php echo htmlspecialchars($upi_name); ?>">
+                            <input type="text" name="upi_name" class="form-control form-control-sm" placeholder="e.g. LKVM Computer Academy" value="<?php echo htmlspecialchars($upi_name); ?>">
                         </div>
                     </div>
-                    <small class="text-muted mt-2 d-block">Shown on checkout for students to scan with Google Pay, PhonePe, or Paytm.</small>
+                    <div class="mt-2 d-flex align-items-center gap-2">
+                        <span class="badge <?php echo $enable_upi == '1' ? 'bg-success' : 'bg-secondary'; ?>">
+                            <?php echo $enable_upi == '1' ? '● Active Everywhere' : '○ Disabled'; ?>
+                        </span>
+                        <small class="text-muted">Shows QR code on checkout for students to pay via any UPI app.</small>
+                    </div>
+                </div>
+
+                <!-- 2. Razorpay Gateway -->
+                <div class="card border-0 bg-light p-3 rounded-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary bg-opacity-10 text-primary p-2 rounded-circle">
+                                <i class="fa fa-bolt fs-6"></i>
+                            </span>
+                            <div>
+                                <h6 class="fw-bold mb-0">Razorpay Online Gateway</h6>
+                                <small class="text-muted">Automated card processing, Net Banking, and instant verification</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-5 mb-0">
+                            <input class="form-check-input" type="checkbox" name="enable_razorpay" value="1" id="enable_razorpay" <?php echo $enable_razorpay == '1' ? 'checked' : ''; ?>>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Razorpay Key ID</label>
+                            <input type="text" name="razorpay_key_id" class="form-control form-control-sm" placeholder="rzp_live_... or rzp_test_..." value="<?php echo htmlspecialchars($razorpay_key_id); ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Razorpay Key Secret</label>
+                            <input type="password" name="razorpay_key_secret" class="form-control form-control-sm" placeholder="Key Secret" value="<?php echo htmlspecialchars($razorpay_key_secret); ?>">
+                        </div>
+                    </div>
+                    <div class="mt-2 d-flex align-items-center gap-2">
+                        <span class="badge <?php echo $enable_razorpay == '1' ? 'bg-primary' : 'bg-secondary'; ?>">
+                            <?php echo $enable_razorpay == '1' ? '● Active Everywhere' : '○ Disabled'; ?>
+                        </span>
+                        <small class="text-muted">Automated checkout popup with instant webhook confirmation.</small>
+                    </div>
+                </div>
+
+                <!-- 3. Direct Credit/Debit Card Option -->
+                <div class="card border-0 bg-light p-3 rounded-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info bg-opacity-10 text-info p-2 rounded-circle">
+                                <i class="fa fa-credit-card fs-6"></i>
+                            </span>
+                            <div>
+                                <h6 class="fw-bold mb-0">Credit / Debit Card Checkout</h6>
+                                <small class="text-muted">Direct Visa, MasterCard, RuPay card payment option</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-5 mb-0">
+                            <input class="form-check-input" type="checkbox" name="enable_card" value="1" id="enable_card" <?php echo $enable_card == '1' ? 'checked' : ''; ?>>
+                        </div>
+                    </div>
+                    <div class="mt-1 d-flex align-items-center gap-2">
+                        <span class="badge <?php echo $enable_card == '1' ? 'bg-info' : 'bg-secondary'; ?>">
+                            <?php echo $enable_card == '1' ? '● Active Everywhere' : '○ Disabled'; ?>
+                        </span>
+                        <small class="text-muted">When enabled, students can enter card details directly on checkout.</small>
+                    </div>
                 </div>
 
                 <button type="submit" name="save_settings" class="btn btn-primary rounded-pill px-5 py-3 fw-bold shadow-sm">

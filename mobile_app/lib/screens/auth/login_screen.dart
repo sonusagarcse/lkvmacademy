@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/auth_redirect.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/modern_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -64,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (widget.onLoginSuccess != null) {
         widget.onLoginSuccess!();
       } else {
-        Navigator.of(context).pop();
+        await AuthRedirect.redirect(context);
       }
     } else {
       setState(() {
@@ -252,7 +253,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       GestureDetector(
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => RegisterScreen(
+                                onRegisterSuccess: widget.onLoginSuccess,
+                              ),
+                            ),
                           );
                         },
                         child: const Text(
