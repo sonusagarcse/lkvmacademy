@@ -28,7 +28,14 @@
     RewriteRule ^ %1 [R=301,L,NE]
 
     # --------------------------------------------------------------------------
-    # 2. Pass-through existing physical files and directories (css, js, images, uploads, api)
+    # 2. Compatibility: Strip /courses/ prefix if accessed on root domain
+    # --------------------------------------------------------------------------
+    RewriteRule ^courses/api/(.*)$ api/$1 [L,QSA]
+    RewriteRule ^courses/uploads/(.*)$ uploads/$1 [L,QSA]
+    RewriteRule ^courses/(.*)$ $1 [L,QSA]
+
+    # --------------------------------------------------------------------------
+    # 3. Pass-through existing physical files and directories (css, js, images, uploads, api)
     # --------------------------------------------------------------------------
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d

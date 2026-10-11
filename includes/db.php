@@ -50,22 +50,43 @@ foreach ($envFiles as $envPath) {
     }
 }
 
-// Dedicated LMS Database Credentials
+// Dedicated LMS Database Credentials (defaults to ouvcxwtd_courses for live server)
 $lmsDbHost = getenv('COURSES_DB_HOST') ?: (getenv('DB_HOST') ?: 'localhost');
-$lmsDbUser = getenv('COURSES_DB_USER') ?: (getenv('DB_USER') ?: 'root');
-$lmsDbPass = getenv('COURSES_DB_PASS') !== false ? getenv('COURSES_DB_PASS') : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
-$lmsDbName = getenv('COURSES_DB_NAME') ?: 'lkvm_courses';
+$lmsDbUser = getenv('COURSES_DB_USER') ?: (getenv('DB_USER') ?: 'ouvcxwtd_courses');
+$lmsDbPass = getenv('COURSES_DB_PASS') !== false ? getenv('COURSES_DB_PASS') : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'ouvcxwtd_courses');
+$lmsDbName = getenv('COURSES_DB_NAME') ?: (getenv('DB_NAME') ?: 'ouvcxwtd_courses');
 
 try {
-    // Connect to MySQL server
-    $con = mysqli_connect($lmsDbHost, $lmsDbUser, $lmsDbPass);
+    mysqli_report(MYSQLI_REPORT_OFF);
+
+    // 1. Connect directly with configured credentials (cPanel live server & standard setups)
+    $con = @mysqli_connect($lmsDbHost, $lmsDbUser, $lmsDbPass, $lmsDbName);
+
+    // 2. If direct DB connection failed, try connecting without DB (to create database if needed)
+    if (!$con) {
+        $con = @mysqli_connect($lmsDbHost, $lmsDbUser, $lmsDbPass);
+        if ($con) {
+            @mysqli_query($con, "CREATE DATABASE IF NOT EXISTS `$lmsDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            mysqli_select_db($con, $lmsDbName);
+        }
+    }
+
+    // 3. If running on local machine and live credentials failed, gracefully fallback to local XAMPP root
+    if (!$con && in_array($lmsDbHost, ['localhost', '127.0.0.1']) && $lmsDbUser !== 'root') {
+        $con = @mysqli_connect('localhost', 'root', '', $lmsDbName);
+        if (!$con) {
+            $con = @mysqli_connect('localhost', 'root', '');
+            if ($con) {
+                @mysqli_query($con, "CREATE DATABASE IF NOT EXISTS `$lmsDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                mysqli_select_db($con, $lmsDbName);
+            }
+        }
+    }
+
     if (!$con) {
         throw new Exception("MySQL Server Connection Error: " . mysqli_connect_error());
     }
 
-    // Ensure database exists
-    mysqli_query($con, "CREATE DATABASE IF NOT EXISTS `$lmsDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    mysqli_select_db($con, $lmsDbName);
     mysqli_set_charset($con, 'utf8mb4');
 
 } catch (Exception $e) {

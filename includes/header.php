@@ -19,8 +19,9 @@ $site_tagline = lms_get_setting($con, 'site_tagline', 'Master Skills of the Futu
     <title><?php echo $page_title ?? 'Explore Courses'; ?> - <?php echo htmlspecialchars($site_name); ?></title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="apple-touch-icon" href="img/favicon.png">
     <link rel="shortcut icon" href="favicon.ico">
     
     <!-- Google Fonts -->

@@ -1,14 +1,18 @@
 import 'package:flutter/foundation.dart';
 
 class ApiEndpoints {
-  // Automatic default based on platform:
-  // - Web: http://localhost
-  // - Android Emulator: http://10.0.2.2
-  // - Physical Phone on same Wi-Fi: change to your PC's IP, e.g. 'http://10.128.51.121'
-  // Production server host for both Android APK and Web:
+  // Production server host:
   static String host = 'https://courses.lkvmbihar.in';
 
-  static String get baseUrl => '$host/courses/api';
+  // Automatically resolves API base URL:
+  // - On live server (courses.lkvmbihar.in): https://courses.lkvmbihar.in/api
+  // - On localhost: http://localhost/courses/api
+  static String get baseUrl {
+    if (host.contains('courses.lkvmbihar.in')) {
+      return '$host/api';
+    }
+    return '$host/courses/api';
+  }
 
   static String get auth => '$baseUrl/auth.php';
   static String get courses => '$baseUrl/courses.php';
@@ -26,6 +30,10 @@ class ApiEndpoints {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    return '$host/courses/${path.replaceFirst(RegExp(r'^/'), '')}';
+    final cleanPath = path.replaceFirst(RegExp(r'^/'), '');
+    if (host.contains('courses.lkvmbihar.in')) {
+      return '$host/$cleanPath';
+    }
+    return '$host/courses/$cleanPath';
   }
 }
