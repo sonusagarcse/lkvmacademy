@@ -24,6 +24,20 @@ if ($action === 'login' || $action === 'student_login') {
         }
 
         if (password_verify($password, $user['password'])) {
+            // Check email verification if SMTP is active
+            $smtp_config = lms_get_smtp_config($con);
+            if ($smtp_config['enabled'] && isset($user['email_verified']) && $user['email_verified'] == 0) {
+                $otp = strval(rand(100000, 999999));
+                $exp = date('Y-m-d H:i:s', time() + 900);
+                mysqli_query($con, "UPDATE lms_students SET otp_code = '$otp', otp_expires_at = '$exp' WHERE id = {$user['id']}");
+                lms_send_otp_email($con, $user['email'], $user['name'], $otp);
+
+                json_res(false, 'Please verify your email address. A fresh 6-digit OTP has been sent to your Gmail.', [
+                    'requires_otp' => true,
+                    'email' => $user['email']
+                ], 403);
+            }
+
             $token = generate_token($user['id'], 'student');
             unset($user['password']);
             $user['user_type'] = 'student';
@@ -54,33 +68,137 @@ if ($action === 'register' || $action === 'student_register') {
         json_res(false, 'Password must be at least 6 characters.', null, 400);
     }
 
-    $chk = $con->prepare("SELECT id FROM lms_students WHERE email = ? LIMIT 1");
+    $chk = $con->prepare("SELECT id, email_verified FROM lms_students WHERE email = ? LIMIT 1");
     $chk->bind_param("s", $email);
     $chk->execute();
-    if ($chk->get_result()->num_rows > 0) {
-        json_res(false, 'An account with this email already exists.', null, 409);
+    $chkRes = $chk->get_result();
+
+    if ($chkRes->num_rows > 0) {
+        $existing = $chkRes->fetch_assoc();
+        // If account exists but never verified, re-send OTP
+        if (isset($existing['email_verified']) && $existing['email_verified'] == 0) {
+            $otp = strval(rand(100000, 999999));
+            $exp = date('Y-m-d H:i:s', time() + 900);
+            mysqli_query($con, "UPDATE lms_students SET otp_code = '$otp', otp_expires_at = '$exp' WHERE id = {$existing['id']}");
+            lms_send_otp_email($con, $email, $name, $otp);
+
+            json_res(true, 'An account with this email is pending verification. A fresh OTP was sent to your Gmail.', [
+                'requires_otp' => true,
+                'email' => $email,
+                'user_id' => $existing['id']
+            ], 200);
+        }
+
+        json_res(false, 'An account with this email already exists. Please login.', null, 409);
     }
     $chk->close();
 
+    $smtp_config = lms_get_smtp_config($con);
+    $requires_otp = $smtp_config['enabled'];
+    $email_verified = $requires_otp ? 0 : 1;
+    $otp = $requires_otp ? strval(rand(100000, 999999)) : null;
+    $exp = $requires_otp ? date('Y-m-d H:i:s', time() + 900) : null;
+
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $ins = $con->prepare("INSERT INTO lms_students (name, email, password, phone, status) VALUES (?, ?, ?, ?, 1)");
-    $ins->bind_param("ssss", $name, $email, $hash, $phone);
+    $ins = $con->prepare("INSERT INTO lms_students (name, email, password, phone, status, email_verified, otp_code, otp_expires_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)");
+    $ins->bind_param("ssssiss", $name, $email, $hash, $phone, $email_verified, $otp, $exp);
 
     if ($ins->execute()) {
         $userId = $ins->insert_id;
-        $token = generate_token($userId, 'student');
-        json_res(true, 'Account created successfully!', [
-            'user' => [
-                'id' => $userId,
-                'name' => $name,
+
+        if ($requires_otp) {
+            lms_send_otp_email($con, $email, $name, $otp);
+            json_res(true, 'Registration initiated! Please enter the 6-digit OTP sent to your Gmail.', [
+                'requires_otp' => true,
                 'email' => $email,
-                'phone' => $phone,
-                'user_type' => 'student'
-            ],
-            'token' => $token
-        ], 201);
+                'user_id' => $userId
+            ], 200);
+        } else {
+            $token = generate_token($userId, 'student');
+            json_res(true, 'Account created successfully!', [
+                'requires_otp' => false,
+                'user' => [
+                    'id' => $userId,
+                    'name' => $name,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'user_type' => 'student'
+                ],
+                'token' => $token
+            ], 201);
+        }
     } else {
         json_res(false, 'Failed to create account.', null, 500);
+    }
+}
+
+// 2.2 Verify Registration OTP
+if ($action === 'verify_otp' || $action === 'student_verify_otp') {
+    $email = trim($data['email'] ?? '');
+    $otp = trim($data['otp'] ?? ($data['otp_code'] ?? ''));
+
+    if (empty($email) || empty($otp)) {
+        json_res(false, 'Email and 6-digit OTP are required.', null, 400);
+    }
+
+    $stmt = $con->prepare("SELECT * FROM lms_students WHERE email = ? LIMIT 1");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($res && $user = $res->fetch_assoc()) {
+        if (empty($user['otp_code']) || $user['otp_code'] !== $otp) {
+            json_res(false, 'Invalid verification code. Please check and try again.', null, 400);
+        }
+
+        if (!empty($user['otp_expires_at']) && strtotime($user['otp_expires_at']) < time()) {
+            json_res(false, 'OTP has expired. Please tap Resend OTP to get a new code.', null, 400);
+        }
+
+        $uid = intval($user['id']);
+        mysqli_query($con, "UPDATE lms_students SET email_verified = 1, otp_code = NULL, otp_expires_at = NULL WHERE id = $uid");
+
+        $token = generate_token($uid, 'student');
+        unset($user['password']);
+        unset($user['otp_code']);
+        unset($user['otp_expires_at']);
+        $user['email_verified'] = 1;
+        $user['user_type'] = 'student';
+
+        json_res(true, 'Email verified successfully! Welcome to LKVM Academy.', [
+            'user' => $user,
+            'token' => $token
+        ]);
+    } else {
+        json_res(false, 'No account found with this email.', null, 404);
+    }
+}
+
+// 2.3 Resend Verification OTP
+if ($action === 'resend_otp') {
+    $email = trim($data['email'] ?? '');
+    if (empty($email)) {
+        json_res(false, 'Email address is required.', null, 400);
+    }
+
+    $stmt = $con->prepare("SELECT id, name, email FROM lms_students WHERE email = ? LIMIT 1");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($res && $user = $res->fetch_assoc()) {
+        $otp = strval(rand(100000, 999999));
+        $exp = date('Y-m-d H:i:s', time() + 900);
+        $uid = intval($user['id']);
+        mysqli_query($con, "UPDATE lms_students SET otp_code = '$otp', otp_expires_at = '$exp' WHERE id = $uid");
+
+        $mailRes = lms_send_otp_email($con, $user['email'], $user['name'], $otp);
+        json_res(true, 'A new 6-digit OTP has been sent to your Gmail.', [
+            'email' => $email,
+            'delivered' => $mailRes['success']
+        ]);
+    } else {
+        json_res(false, 'No account found with this email.', null, 404);
     }
 }
 

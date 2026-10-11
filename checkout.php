@@ -42,6 +42,12 @@ if ($course['is_free'] == 1 || $course['price'] <= 0) {
         $ins->bind_param("iis", $student_id, $course_id, $pay_id);
         $ins->execute();
         $ins->close();
+
+        // Send email
+        $st_email = $_SESSION['student_email'] ?? '';
+        if (!empty($st_email)) {
+            lms_send_enrollment_email($con, $st_email, $student_name, $course['title'], 0.00, $pay_id, $course['slug']);
+        }
     }
     header("Location: learn?slug=" . urlencode($course['slug']) . "&enrolled=success");
     exit();
@@ -60,6 +66,13 @@ if (isset($_POST['submit_upi_payment'])) {
             $stmt_upi->bind_param("iids", $student_id, $course_id, $course['price'], $pay_id);
             $stmt_upi->execute();
             $stmt_upi->close();
+
+            // Send email
+            $st_email = $_SESSION['student_email'] ?? '';
+            if (!empty($st_email)) {
+                lms_send_enrollment_email($con, $st_email, $student_name, $course['title'], $course['price'], $pay_id, $course['slug']);
+            }
+
             header("Location: learn?slug=" . urlencode($course['slug']) . "&enrolled=success");
             exit();
         }

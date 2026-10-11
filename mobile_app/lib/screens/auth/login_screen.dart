@@ -4,6 +4,7 @@ import '../../core/utils/auth_redirect.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/modern_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/otp_verification_dialog.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -68,6 +69,22 @@ class _LoginScreenState extends State<LoginScreen> {
         await AuthRedirect.redirect(context);
       }
     } else {
+      if (res['requires_otp'] == true) {
+        final email = _emailController.text.trim();
+        OtpVerificationDialog.show(
+          context,
+          email: email,
+          onVerified: () async {
+            if (widget.onLoginSuccess != null) {
+              widget.onLoginSuccess!();
+            } else {
+              await AuthRedirect.redirect(context);
+            }
+          },
+        );
+        return;
+      }
+
       setState(() {
         _errorMessage = res['message'] ?? 'Authentication failed.';
       });

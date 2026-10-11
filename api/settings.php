@@ -48,10 +48,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ];
     }
 
-    json_res(true, 'Payment settings fetched', [
+    $smtp_enabled = lms_get_setting($con, 'smtp_enabled', '0') === '1';
+    $smtp_host = lms_get_setting($con, 'smtp_host', 'smtp.gmail.com');
+    $smtp_port = lms_get_setting($con, 'smtp_port', '587');
+    $smtp_username = lms_get_setting($con, 'smtp_username', '');
+    $smtp_encryption = lms_get_setting($con, 'smtp_encryption', 'tls');
+    $smtp_from_email = lms_get_setting($con, 'smtp_from_email', 'info@lkvmbihar.in');
+    $smtp_from_name = lms_get_setting($con, 'smtp_from_name', 'LKVM Academy');
+
+    json_res(true, 'Payment and platform settings fetched', [
         'site_name' => $site_name,
         'currency_symbol' => $currency_symbol,
         'currency_code' => $currency_code,
+        'smtp' => [
+            'enabled' => $smtp_enabled,
+            'host' => $smtp_host,
+            'port' => $smtp_port,
+            'encryption' => $smtp_encryption,
+            'from_email' => $smtp_from_email,
+            'from_name' => $smtp_from_name,
+        ],
         'gateways' => $enabled_gateways,
         'all_gateways' => [
             'upi' => [
@@ -76,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     ]);
 }
 
-// POST: Update Gateway Settings from Admin Panel
+// POST: Update Gateway & SMTP Settings from Admin Panel
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = get_auth_user($con);
     if (!$user || !in_array($user['role'], ['admin', 'superadmin', 'instructor'])) {
@@ -84,6 +100,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $data = get_request_data();
+    $action = $data['action'] ?? '';
+
+    // Live Test SMTP Connection
+    if ($action === 'test_smtp') {
+        $testEmail = trim($data['test_email'] ?? $user['email']);
+        $testRes = lms_test_smtp_connection($con, $testEmail);
+        json_res($testRes['success'], $testRes['message'], $testRes);
+    }
+
     if (isset($data['enable_upi'])) {
         lms_set_setting($con, 'enable_upi', ($data['enable_upi'] == '1' || $data['enable_upi'] === true) ? '1' : '0');
     }
@@ -103,5 +128,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         lms_set_setting($con, 'razorpay_key_id', trim($data['razorpay_key_id']));
     }
 
-    json_res(true, 'Payment gateway settings saved successfully.');
+    // SMTP Settings
+    if (isset($data['smtp_enabled'])) {
+        lms_set_setting($con, 'smtp_enabled', ($data['smtp_enabled'] == '1' || $data['smtp_enabled'] === true) ? '1' : '0');
+    }
+    if (isset($data['smtp_host'])) {
+        lms_set_setting($con, 'smtp_host', trim($data['smtp_host']));
+    }
+    if (isset($data['smtp_port'])) {
+        lms_set_setting($con, 'smtp_port', trim($data['smtp_port']));
+    }
+    if (isset($data['smtp_username'])) {
+        lms_set_setting($con, 'smtp_username', trim($data['smtp_username']));
+    }
+    if (isset($data['smtp_password']) && !empty($data['smtp_password'])) {
+        lms_set_setting($con, 'smtp_password', trim($data['smtp_password']));
+    }
+    if (isset($data['smtp_encryption'])) {
+        lms_set_setting($con, 'smtp_encryption', trim($data['smtp_encryption']));
+    }
+    if (isset($data['smtp_from_email'])) {
+        lms_set_setting($con, 'smtp_from_email', trim($data['smtp_from_email']));
+    }
+    if (isset($data['smtp_from_name'])) {
+        lms_set_setting($con, 'smtp_from_name', trim($data['smtp_from_name']));
+    }
+
+    json_res(true, 'Settings updated successfully.');
 }

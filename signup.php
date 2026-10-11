@@ -23,24 +23,51 @@ if (isset($_POST['signup'])) {
     } elseif (strlen($password_raw) < 6) {
         $error = "Password must be at least 6 characters long.";
     } else {
-        $check = mysqli_query($con, "SELECT id FROM lms_students WHERE email = '" . mysqli_real_escape_string($con, $email) . "'");
+        $check = mysqli_query($con, "SELECT id, email_verified FROM lms_students WHERE email = '" . mysqli_real_escape_string($con, $email) . "'");
         if (mysqli_num_rows($check) > 0) {
+            $existing = mysqli_fetch_assoc($check);
+            if (isset($existing['email_verified']) && $existing['email_verified'] == 0) {
+                // Account exists but unverified -> resend OTP
+                $otp = strval(rand(100000, 999999));
+                $exp = date('Y-m-d H:i:s', time() + 900);
+                mysqli_query($con, "UPDATE lms_students SET otp_code = '$otp', otp_expires_at = '$exp' WHERE id = {$existing['id']}");
+                lms_send_otp_email($con, $email, $name, $otp);
+
+                $_SESSION['pending_otp_email'] = $email;
+                $_SESSION['pending_otp_redirect'] = $redirect;
+                header("Location: verify-otp.php?email=" . urlencode($email));
+                exit();
+            }
             $error = "An account with this email address already exists. Please log in.";
         } else {
+            $smtp_config = lms_get_smtp_config($con);
+            $requires_otp = $smtp_config['enabled'];
+            $email_verified = $requires_otp ? 0 : 1;
+            $otp = $requires_otp ? strval(rand(100000, 999999)) : null;
+            $exp = $requires_otp ? date('Y-m-d H:i:s', time() + 900) : null;
+
             $password_hash = password_hash($password_raw, PASSWORD_DEFAULT);
-            $stmt = $con->prepare("INSERT INTO lms_students (name, email, password, phone, status) VALUES (?, ?, ?, ?, 1)");
+            $stmt = $con->prepare("INSERT INTO lms_students (name, email, password, phone, status, email_verified, otp_code, otp_expires_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)");
             if ($stmt) {
-                $stmt->bind_param("ssss", $name, $email, $password_hash, $phone);
+                $stmt->bind_param("ssssiss", $name, $email, $password_hash, $phone, $email_verified, $otp, $exp);
                 $stmt->execute();
                 $new_id = $stmt->insert_id;
                 $stmt->close();
 
-                $_SESSION['student_id'] = $new_id;
-                $_SESSION['student_name'] = $name;
-                $_SESSION['student_email'] = $email;
+                if ($requires_otp) {
+                    lms_send_otp_email($con, $email, $name, $otp);
+                    $_SESSION['pending_otp_email'] = $email;
+                    $_SESSION['pending_otp_redirect'] = $redirect;
+                    header("Location: verify-otp.php?email=" . urlencode($email));
+                    exit();
+                } else {
+                    $_SESSION['student_id'] = $new_id;
+                    $_SESSION['student_name'] = $name;
+                    $_SESSION['student_email'] = $email;
 
-                header("Location: $redirect");
-                exit();
+                    header("Location: $redirect");
+                    exit();
+                }
             } else {
                 $error = "Database error. Please try again.";
             }

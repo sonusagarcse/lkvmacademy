@@ -23,7 +23,14 @@ if (isset($_POST['save_settings'])) {
         'razorpay_key_id',
         'razorpay_key_secret',
         'upi_id',
-        'upi_name'
+        'upi_name',
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'smtp_from_email',
+        'smtp_from_name'
     ];
 
     foreach ($keys as $key) {
@@ -36,11 +43,31 @@ if (isset($_POST['save_settings'])) {
     $enable_razorpay = isset($_POST['enable_razorpay']) ? '1' : '0';
     $enable_upi = isset($_POST['enable_upi']) ? '1' : '0';
     $enable_card = isset($_POST['enable_card']) ? '1' : '0';
+    $smtp_enabled = isset($_POST['smtp_enabled']) ? '1' : '0';
     lms_set_setting($con, 'enable_razorpay', $enable_razorpay);
     lms_set_setting($con, 'enable_upi', $enable_upi);
     lms_set_setting($con, 'enable_card', $enable_card);
+    lms_set_setting($con, 'smtp_enabled', $smtp_enabled);
 
     $msg = "Settings updated successfully!";
+}
+
+// Handle Test Email Dispatch
+if (isset($_POST['send_test_email'])) {
+    $test_email = trim($_POST['test_email'] ?? '');
+    if (empty($test_email) || !filter_var($test_email, FILTER_VALIDATE_EMAIL)) {
+        $msg = "Error: Please enter a valid email address for testing.";
+        $msg_type = "danger";
+    } else {
+        $test_res = lms_test_smtp_connection($con, $test_email);
+        if ($test_res['success']) {
+            $msg = "Test Email Delivered Successfully! " . htmlspecialchars($test_res['message']);
+            $msg_type = "success";
+        } else {
+            $msg = "SMTP Delivery Failed: " . htmlspecialchars($test_res['message']);
+            $msg_type = "danger";
+        }
+    }
 }
 
 // Handle Password Change
@@ -83,6 +110,14 @@ $razorpay_key_id = lms_get_setting($con, 'razorpay_key_id', '');
 $razorpay_key_secret = lms_get_setting($con, 'razorpay_key_secret', '');
 $upi_id = lms_get_setting($con, 'upi_id', 'lkvm@upi');
 $upi_name = lms_get_setting($con, 'upi_name', 'LKVM Computer Education');
+$smtp_enabled = lms_get_setting($con, 'smtp_enabled', '0');
+$smtp_host = lms_get_setting($con, 'smtp_host', 'smtp.gmail.com');
+$smtp_port = lms_get_setting($con, 'smtp_port', '587');
+$smtp_username = lms_get_setting($con, 'smtp_username', '');
+$smtp_password = lms_get_setting($con, 'smtp_password', '');
+$smtp_encryption = lms_get_setting($con, 'smtp_encryption', 'tls');
+$smtp_from_email = lms_get_setting($con, 'smtp_from_email', 'info@lkvmbihar.in');
+$smtp_from_name = lms_get_setting($con, 'smtp_from_name', 'LKVM Academy');
 
 $page_title = 'LMS Settings & Payments';
 include 'includes/header.php';
@@ -248,6 +283,88 @@ include 'includes/header.php';
                     </div>
                 </div>
 
+                <hr class="my-4">
+
+                <!-- 4. SMTP Email Configuration -->
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="bg-warning bg-opacity-10 text-warning p-3 rounded-4">
+                        <i class="fa fa-envelope-open-text fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-800 mb-0">SMTP Email Server & OTP Configuration</h5>
+                        <small class="text-muted">Configure Gmail or custom SMTP server for OTP verification and automated notifications</small>
+                    </div>
+                </div>
+
+                <div class="card border-0 bg-light p-3 rounded-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning bg-opacity-10 text-warning p-2 rounded-circle">
+                                <i class="fa fa-envelope fs-6"></i>
+                            </span>
+                            <div>
+                                <h6 class="fw-bold mb-0">Enable Automated Email Dispatch</h6>
+                                <small class="text-muted">Sends OTP verification, enrollment invoices, and certificate completion emails</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch fs-5 mb-0">
+                            <input class="form-check-input" type="checkbox" name="smtp_enabled" value="1" id="smtp_enabled" <?php echo $smtp_enabled == '1' ? 'checked' : ''; ?>>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info border-0 rounded-3 p-3 small mb-3">
+                        <i class="fa fa-info-circle me-1"></i> <strong>Gmail Setup Guide:</strong> For Gmail (<code>smtp.gmail.com</code>), you must generate a 16-character <strong>App Password</strong>. Go to <strong>Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords</strong>, create one for "Mail", and paste it in the Password field below.
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">SMTP Host</label>
+                            <input type="text" name="smtp_host" class="form-control" placeholder="smtp.gmail.com" value="<?php echo htmlspecialchars($smtp_host); ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">SMTP Port</label>
+                            <input type="number" name="smtp_port" class="form-control" placeholder="587" value="<?php echo htmlspecialchars($smtp_port); ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Encryption</label>
+                            <select name="smtp_encryption" class="form-select">
+                                <option value="tls" <?php echo $smtp_encryption === 'tls' ? 'selected' : ''; ?>>TLS (Port 587)</option>
+                                <option value="ssl" <?php echo $smtp_encryption === 'ssl' ? 'selected' : ''; ?>>SSL (Port 465)</option>
+                                <option value="none" <?php echo $smtp_encryption === 'none' ? 'selected' : ''; ?>>None (Port 25)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">SMTP Username / Gmail ID</label>
+                            <input type="email" name="smtp_username" class="form-control" placeholder="yourgmail@gmail.com" value="<?php echo htmlspecialchars($smtp_username); ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">SMTP Password / App Password</label>
+                            <input type="password" name="smtp_password" class="form-control" placeholder="16-character Google App Password" value="<?php echo htmlspecialchars($smtp_password); ?>">
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">From Email Address</label>
+                            <input type="email" name="smtp_from_email" class="form-control" placeholder="info@lkvmbihar.in" value="<?php echo htmlspecialchars($smtp_from_email); ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted text-uppercase">From Sender Name</label>
+                            <input type="text" name="smtp_from_name" class="form-control" placeholder="LKVM Academy" value="<?php echo htmlspecialchars($smtp_from_name); ?>">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 d-flex align-items-center gap-2">
+                        <span class="badge <?php echo $smtp_enabled == '1' ? 'bg-success' : 'bg-secondary'; ?>">
+                            <?php echo $smtp_enabled == '1' ? '● Emails Active' : '○ Emails Disabled'; ?>
+                        </span>
+                        <small class="text-muted">When enabled, students will verify registration with OTP on Gmail.</small>
+                    </div>
+                </div>
+
                 <button type="submit" name="save_settings" class="btn btn-primary rounded-pill px-5 py-3 fw-bold shadow-sm">
                     <i class="fa fa-save me-2"></i> Save Academy Settings
                 </button>
@@ -255,8 +372,34 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Password Management -->
+    <!-- Password Management & Test Email -->
     <div class="col-lg-4">
+        <!-- Test SMTP Email Dispatch -->
+        <div class="admin-card p-4 mb-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-4">
+                    <i class="fa fa-paper-plane fs-4"></i>
+                </div>
+                <div>
+                    <h5 class="fw-800 mb-0">Test SMTP Delivery</h5>
+                    <small class="text-muted">Verify mail credentials live</small>
+                </div>
+            </div>
+
+            <p class="text-muted small">Send an instant test email to verify your SMTP server connection and Gmail authentication before student signups.</p>
+
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-uppercase text-muted">Recipient Email</label>
+                    <input type="email" name="test_email" class="form-control" placeholder="yourpersonal@gmail.com" required value="<?php echo htmlspecialchars($contact_email); ?>">
+                </div>
+
+                <button type="submit" name="send_test_email" class="btn btn-outline-primary w-100 py-2 rounded-pill fw-bold">
+                    <i class="fa fa-paper-plane me-2"></i> Send Live Test Email
+                </button>
+            </form>
+        </div>
+
         <div class="admin-card p-4">
             <div class="d-flex align-items-center gap-3 mb-4">
                 <div class="bg-dark bg-opacity-10 text-dark p-3 rounded-4">

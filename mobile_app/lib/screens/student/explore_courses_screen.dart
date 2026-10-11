@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
 import '../../models/course_model.dart';
 import '../../models/category_model.dart';
 import '../../services/api_service.dart';

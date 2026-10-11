@@ -69,6 +69,11 @@ if ($method === 'POST') {
             $enrollmentId = $stmt->insert_id;
             $stmt->close();
 
+            // Dispatch Course Purchase / Enrollment Confirmation Email
+            if (!empty($user['email'])) {
+                lms_send_enrollment_email($con, $user['email'], $user['name'], $course['title'], $amount, $paymentId, $course['slug']);
+            }
+
             json_res(true, 'Enrollment successful! Welcome to the course.', [
                 'enrollment_id' => $enrollmentId,
                 'course_id' => $courseId,

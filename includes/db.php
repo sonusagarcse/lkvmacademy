@@ -296,6 +296,12 @@ if (file_exists(__DIR__ . '/certificate_helper.php')) {
     lms_ensure_certificates_table($con);
 }
 
+// Ensure SMTP & email verification system
+if (file_exists(__DIR__ . '/mailer.php')) {
+    require_once __DIR__ . '/mailer.php';
+    lms_ensure_email_schema($con);
+}
+
 // Also check and add missing columns/tables if schema was partially created earlier
 $checkProgress = mysqli_query($con, "SHOW TABLES LIKE 'lms_progress'");
 if (mysqli_num_rows($checkProgress) == 0) {

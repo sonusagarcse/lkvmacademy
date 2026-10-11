@@ -4,6 +4,7 @@ import '../../core/utils/auth_redirect.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/modern_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/otp_verification_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback? onRegisterSuccess;
@@ -57,6 +58,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (res['status'] == true) {
+      if (res['requires_otp'] == true) {
+        OtpVerificationDialog.show(
+          context,
+          email: email,
+          onVerified: () async {
+            if (widget.onRegisterSuccess != null) {
+              widget.onRegisterSuccess!();
+            } else {
+              await AuthRedirect.redirect(context);
+            }
+          },
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(res['message'] ?? 'Account created successfully!'),

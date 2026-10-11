@@ -69,7 +69,15 @@ $certCode = null;
 if ($percent >= 100) {
     // Issue or get certificate
     lms_ensure_certificates_table($con);
+    $alreadyHadCert = lms_get_certificate($con, $userId, $courseId);
     $certCode = lms_award_certificate_if_eligible($con, $userId, $courseId);
+
+    // If certificate was newly issued, dispatch course completion celebration email
+    if (!$alreadyHadCert && !empty($certCode) && !empty($user['email'])) {
+        $cQ = mysqli_query($con, "SELECT title FROM lms_courses WHERE id = $courseId LIMIT 1");
+        $cTitle = ($cQ && $cr = mysqli_fetch_assoc($cQ)) ? $cr['title'] : 'Course';
+        lms_send_course_completed_email($con, $user['email'], $user['name'], $cTitle, $certCode);
+    }
 }
 
 json_res(true, $isCompleted ? 'Lesson marked as completed!' : 'Lesson unmarked.', [

@@ -140,7 +140,7 @@ class _ClassroomScreenState extends State<ClassroomScreen> {
         builder: (_) => CheckoutScreen(course: widget.course),
       ),
     ).then((enrolled) {
-      if (enrolled == true) {
+      if (enrolled == true && mounted) {
         _refreshCourseAccess();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -289,6 +289,36 @@ class _ClassroomScreenState extends State<ClassroomScreen> {
             content: Text(newStatus ? 'Lesson completed! Great job.' : 'Lesson unmarked.'),
             backgroundColor: newStatus ? AppColors.success : Colors.grey,
             duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleAutoLessonCompletion() async {
+    final lesson = _currentLesson;
+    if (lesson == null || lesson.isCompleted || !_isEnrolled) return;
+
+    final res = await ApiService().toggleLessonProgress(
+      lessonId: lesson.id,
+      courseId: widget.course.id,
+      completed: true,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      lesson.isCompleted = true;
+    });
+
+    if (res['status'] == true) {
+      if (res['data'] != null && res['data']['certificate_awarded'] == true) {
+        _showCertificateCelebrationModal();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Lesson completed! Progress saved.'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -504,6 +534,11 @@ class _ClassroomScreenState extends State<ClassroomScreen> {
                     lesson: lesson,
                     courseTitle: widget.course.title,
                     fallbackThumbnail: widget.course.thumbnail,
+                    hasNext: _currentIndex < _lessons.length - 1,
+                    hasPrevious: _currentIndex > 0,
+                    onNextLesson: _goToNextLesson,
+                    onPreviousLesson: _goToPreviousLesson,
+                    onLessonCompleted: _handleAutoLessonCompletion,
                   )
                 : _buildLockedLectureGate(lesson),
 

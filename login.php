@@ -29,6 +29,19 @@ if (isset($_POST['student_login'])) {
                 if ($user['status'] == 0) {
                     $error = "Your account has been deactivated. Please contact the academy.";
                 } elseif (password_verify($password, $user['password'])) {
+                    $smtp_config = lms_get_smtp_config($con);
+                    if ($smtp_config['enabled'] && isset($user['email_verified']) && $user['email_verified'] == 0) {
+                        $otp = strval(rand(100000, 999999));
+                        $exp = date('Y-m-d H:i:s', time() + 900);
+                        mysqli_query($con, "UPDATE lms_students SET otp_code = '$otp', otp_expires_at = '$exp' WHERE id = {$user['id']}");
+                        lms_send_otp_email($con, $user['email'], $user['name'], $otp);
+
+                        $_SESSION['pending_otp_email'] = $user['email'];
+                        $_SESSION['pending_otp_redirect'] = $redirect;
+                        header("Location: verify-otp.php?email=" . urlencode($user['email']));
+                        exit();
+                    }
+
                     $_SESSION['student_id'] = $user['id'];
                     $_SESSION['student_name'] = $user['name'];
                     $_SESSION['student_email'] = $user['email'];

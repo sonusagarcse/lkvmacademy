@@ -27,6 +27,13 @@ if ($course_id > 0 && !empty($payment_id)) {
                 $stmt->bind_param("iids", $user_id, $course_id, $amount, $payment_id);
                 $stmt->execute();
                 $stmt->close();
+
+                // Dispatch formatted Course Purchase confirmation email
+                $st_email = $_SESSION['student_email'] ?? '';
+                $st_name = $_SESSION['student_name'] ?? 'Learner';
+                if (!empty($st_email)) {
+                    lms_send_enrollment_email($con, $st_email, $st_name, $course['title'] ?? 'Course', $amount, $payment_id, $course['slug']);
+                }
             }
         }
         header("Location: learn?slug=" . urlencode($course['slug']) . "&enrolled=success");

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class ApiEndpoints {
   // Production server host:
   static String host = 'https://courses.lkvmbihar.in';

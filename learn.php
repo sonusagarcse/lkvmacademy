@@ -83,6 +83,12 @@ if (isset($_POST['ajax_complete'])) {
         if ($cert_result) {
             $resp['certificate_issued'] = true;
             $resp['certificate_uid'] = $cert_result['certificate_uid'];
+
+            // Dispatch graduation email
+            $st_email = $_SESSION['student_email'] ?? '';
+            if (!empty($st_email)) {
+                lms_send_course_completed_email($con, $st_email, $student_name, $course['title'], $cert_result['certificate_uid']);
+            }
         }
         echo json_encode($resp);
     } else {
@@ -100,7 +106,13 @@ if (isset($_POST['toggle_complete']) && $user_id) {
     } else {
         mysqli_query($con, "INSERT IGNORE INTO lms_progress (user_id, lesson_id, course_id) VALUES ($user_id, $target_lid, {$course['id']})");
         // Try auto-issue certificate on manual toggle
-        lms_try_auto_issue_certificate($con, $user_id, $course['id']);
+        $new_cert = lms_try_auto_issue_certificate($con, $user_id, $course['id']);
+        if ($new_cert) {
+            $st_email = $_SESSION['student_email'] ?? '';
+            if (!empty($st_email)) {
+                lms_send_course_completed_email($con, $st_email, $student_name, $course['title'], $new_cert['certificate_uid']);
+            }
+        }
     }
     // Check if certificate was just issued - redirect with celebration flag
     $just_issued_cert = lms_get_certificate($con, $user_id, $course['id']);

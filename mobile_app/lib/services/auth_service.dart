@@ -61,7 +61,13 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return {'status': true, 'message': decoded['message'] ?? 'Login successful'};
       } else {
-        return {'status': false, 'message': decoded['message'] ?? 'Login failed'};
+        final requiresOtp = decoded is Map && decoded['data'] != null && decoded['data']['requires_otp'] == true;
+        return {
+          'status': false,
+          'requires_otp': requiresOtp,
+          'email': email,
+          'message': decoded['message'] ?? 'Login failed',
+        };
       }
     } catch (e) {
       return {'status': false, 'message': 'Network error: $e'};
@@ -90,6 +96,15 @@ class AuthService extends ChangeNotifier {
 
       final decoded = json.decode(res.body);
       if (decoded['status'] == true && decoded['data'] != null) {
+        if (decoded['data']['requires_otp'] == true) {
+          return {
+            'status': true,
+            'requires_otp': true,
+            'email': email,
+            'message': decoded['message'] ?? 'OTP verification code sent to your Gmail.',
+          };
+        }
+
         final userData = decoded['data']['user'];
         final token = decoded['data']['token'];
         _user = UserModel.fromJson(userData, token: token);
@@ -97,10 +112,66 @@ class AuthService extends ChangeNotifier {
         await _saveUserSession(_user!, token);
         ApiService().setAuth(token, _user?.id);
         notifyListeners();
-        return {'status': true, 'message': decoded['message'] ?? 'Registration successful'};
+        return {'status': true, 'requires_otp': false, 'message': decoded['message'] ?? 'Registration successful'};
       } else {
         return {'status': false, 'message': decoded['message'] ?? 'Registration failed'};
       }
+    } catch (e) {
+      return {'status': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // 2.1 Verify Student OTP
+  Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse(ApiEndpoints.auth),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'action': 'verify_otp',
+          'email': email,
+          'otp': otp,
+        }),
+      );
+
+      final decoded = json.decode(res.body);
+      if (decoded['status'] == true && decoded['data'] != null) {
+        final userData = decoded['data']['user'];
+        final token = decoded['data']['token'];
+        _user = UserModel.fromJson(userData, token: token);
+
+        await _saveUserSession(_user!, token);
+        ApiService().setAuth(token, _user?.id);
+        notifyListeners();
+        return {'status': true, 'message': decoded['message'] ?? 'Email verified successfully!'};
+      } else {
+        return {'status': false, 'message': decoded['message'] ?? 'Invalid verification code'};
+      }
+    } catch (e) {
+      return {'status': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // 2.2 Resend Student OTP
+  Future<Map<String, dynamic>> resendOtp({required String email}) async {
+    try {
+      final res = await http.post(
+        Uri.parse(ApiEndpoints.auth),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'action': 'resend_otp',
+          'email': email,
+        }),
+      );
+
+      final decoded = json.decode(res.body);
+      return {
+        'status': decoded['status'] == true,
+        'message': decoded['message'] ?? 'OTP dispatch updated',
+      };
     } catch (e) {
       return {'status': false, 'message': 'Network error: $e'};
     }
